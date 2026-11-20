@@ -1,0 +1,9 @@
+# Requirements - BISINDO Recognition
+# Python 3.11
+
+tensorflow==2.15.1
+mediapipe==0.10.21
+opencv-contrib-python==4.10.0.84
+numpy==1.26.4
+matplotlib==3.8.4
+scikit-learn==1.4.2
