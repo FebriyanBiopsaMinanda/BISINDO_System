@@ -1,0 +1,36 @@
+# Virtual Environment
+.venv/
+venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Jupyter Notebook Checkpoints
+.ipynb_checkpoints/
+
+# Environment Variables & Secrets
+.env
+.env.*
+
+# IDE & OS Files
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store
+
+# Temporary & Log Outputs
+*.log
+hasil_webcam_bisindo.jpg
+bisindo_capture_*.jpg
+log_penelitian_bisindo_*.csv
+log_penelitian_bisindo_*.json
+
+# Large Dataset / Big Model Weights (Uncomment jika tidak ingin ikut di-push ke GitHub)
+# Data/
+# resnet50_bisindo.h5
+# hand_landmarker.task

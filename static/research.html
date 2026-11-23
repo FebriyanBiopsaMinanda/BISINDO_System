@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BISINDO Sign-to-Text & Research Telemetry Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col">
+
+  <!-- TOP HEADER & SYSTEM STATUS BAR -->
+  <header class="border-b border-slate-800 bg-slate-900/80 backdrop-blur sticky top-0 z-30">
+    <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold mono text-lg">
+          B
+        </div>
+        <div>
+          <h1 class="font-bold text-base md:text-lg tracking-tight text-white">BISINDO Sign-to-Text</h1>
+        </div>
+      </div>
+
+      <!-- NAVIGATION & LIVE STATUS PILLS -->
+      <div class="flex flex-wrap items-center gap-2 text-xs mono">
+        <nav class="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 mr-2 font-sans">
+          <a href="/" class="px-3 py-1 rounded-lg text-slate-300 hover:text-white hover:bg-slate-800/70 font-medium text-xs transition">
+            Sign-to-Text
+          </a>
+          <a href="/research" class="px-3 py-1 rounded-lg bg-emerald-600 text-white font-medium text-xs shadow">
+            Research Dashboard
+          </a>
+        </nav>
+
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700">
+          <span id="wsDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span class="text-slate-400">WS:</span>
+          <span id="wsStatus" class="text-slate-200 font-medium">Menghubungkan...</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700">
+          <span id="mpDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse"></span>
+          <span class="text-slate-400">MediaPipe:</span>
+          <span id="mpStatus" class="text-slate-200 font-medium">Memuat task...</span>
+        </div>
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-800/90 border border-slate-700">
+          <span class="text-slate-400">Device:</span>
+          <span id="tfDevice" class="text-emerald-400 font-medium">-</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT GRID -->
+  <main class="max-w-[1600px] w-full mx-auto px-4 py-5 flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5">
+
+    <!-- LEFT COLUMN: CAMERA FEED, TRACKING OVERLAY & SIGN-TO-TEXT BUILDER (7 COLS) -->
+    <section class="lg:col-span-7 flex flex-col gap-5">
+
+      <!-- VIDEO & HUD CARD -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden shadow-xl flex flex-col">
+        <!-- Toolbar Camera -->
+        <div class="px-4 py-3 border-b border-slate-800 flex flex-wrap items-center justify-between gap-2 bg-slate-900/60">
+          <div class="flex items-center flex-wrap gap-2">
+            <button id="btnToggleCam" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition flex items-center gap-2 shadow">
+              <span id="camBtnText">Mulai Kamera</span>
+            </button>
+            <button id="btnSnapshot" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition">
+              Simpan Frame (.jpg)
+            </button>
+
+            <div class="flex items-center gap-1.5 bg-slate-950 border border-emerald-500/40 rounded-lg px-2.5 py-1 text-xs">
+              <span class="text-emerald-400 font-semibold">Model:</span>
+              <select id="selCropMode" class="bg-transparent text-slate-100 font-medium focus:outline-none cursor-pointer">
+                <option value="finger_3bones" class="bg-slate-900" selected>Landmark 3 Tulang Jari (MLP - 99.56%)</option>
+                <option value="hand_square" class="bg-slate-900">ResNet50 (Auto-Crop Kotak Tangan 1:1)</option>
+                <option value="center_square" class="bg-slate-900">ResNet50 (Center Square 1:1)</option>
+                <option value="full_frame" class="bg-slate-900">ResNet50 (Full Frame 4:3)</option>
+              </select>
+            </div>
+
+            <label class="flex items-center gap-1.5 text-xs text-slate-300 ml-1 cursor-pointer select-none">
+              <input type="checkbox" id="chkMirror" checked class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0" />
+              Mirror
+            </label>
+            <label class="flex items-center gap-1.5 text-xs text-slate-300 ml-1 cursor-pointer select-none">
+              <input type="checkbox" id="chkShowROI" class="rounded bg-slate-800 border-slate-700 text-emerald-500 focus:ring-0" />
+              Garis ROI
+            </label>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs mono">
+            <div><span class="text-slate-400">FPS:</span> <span id="hudFps" class="text-emerald-400 font-semibold">0</span></div>
+            <div><span class="text-slate-400">Tangan:</span> <span id="hudHands" class="text-cyan-400 font-semibold">0</span></div>
+            <div><span class="text-slate-400">Inferensi:</span> <span id="hudInferMs" class="text-indigo-400 font-semibold">0 ms</span></div>
+          </div>
+        </div>
+
+        <!-- Viewport Webcam + Canvas -->
+        <div class="relative bg-black aspect-video w-full flex items-center justify-center overflow-hidden">
+          <video id="webcam" autoplay playsinline muted class="w-full h-full object-contain hidden"></video>
+          <canvas id="overlayCanvas" class="w-full h-full object-contain"></canvas>
+
+          <!-- Placeholder saat kamera belum aktif -->
+          <div id="camPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/90 text-center p-6">
+            <div class="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center mb-3 text-emerald-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <p class="text-sm font-medium text-slate-200">Kamera Belum Aktif</p>
+          </div>
+
+          <!-- Floating Live Prediction Badge (HUD Top-Left) -->
+          <div class="absolute top-3 left-3 bg-slate-950/85 backdrop-blur-md border border-slate-800/90 rounded-xl px-4 py-2.5 shadow-lg flex items-center gap-4">
+            <div>
+              <div class="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Prediksi</div>
+              <div class="flex items-baseline gap-2 mt-0.5">
+                <span id="livePredChar" class="text-3xl font-extrabold mono text-emerald-400">-</span>
+                <span id="livePredConf" class="text-sm mono text-slate-300">0.0%</span>
+              </div>
+            </div>
+            <!-- Hold Progress Ring / Bar -->
+            <div class="border-l border-slate-800 pl-4 min-w-[130px]">
+              <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1">
+                <span>HOLD-TO-TYPE</span>
+                <span id="holdStatusText" class="mono text-emerald-400">Siap</span>
+              </div>
+              <div class="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden">
+                <div id="holdProgressBar" class="h-full bg-gradient-to-r from-emerald-500 to-cyan-400 transition-all duration-75" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating 224x224 ResNet Input Preview (HUD Bottom-Right) -->
+          <div class="absolute bottom-3 right-3 bg-slate-950/90 backdrop-blur-md border border-slate-800 rounded-xl p-2 shadow-lg flex flex-col items-center gap-1">
+            <span class="text-[10px] mono text-slate-400 uppercase">Input ResNet (224×224)</span>
+            <canvas id="cropPreviewCanvas" width="112" height="112" class="w-24 h-24 rounded-lg border border-emerald-500/40 bg-slate-900 object-cover"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIGN-TO-TEXT SENTENCE BUILDER -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col gap-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-sm font-semibold text-white">Sign-to-Text</h2>
+          <div class="flex flex-wrap items-center gap-1.5">
+            <button id="btnAddCurrent" class="px-2.5 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 text-xs font-medium transition">
+              + Tambah Huruf Ini
+            </button>
+            <button id="btnAddSpace" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition">
+              Spasi [␣]
+            </button>
+            <button id="btnBackspace" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition">
+              ⌫ Hapus
+            </button>
+            <button id="btnSpeak" class="px-2.5 py-1.5 rounded-lg bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 text-xs transition">
+              🔊 Suarakan (TTS)
+            </button>
+            <button id="btnClearText" class="px-2.5 py-1.5 rounded-lg bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 border border-rose-500/30 text-xs transition">
+              Bersihkan
+            </button>
+          </div>
+        </div>
+
+        <div class="relative">
+          <textarea id="sentenceOutput" rows="2" placeholder="Hasil huruf isyarat..."
+            class="w-full rounded-xl bg-slate-950 border border-slate-800 px-4 py-3 text-lg md:text-xl font-semibold tracking-wide text-emerald-300 placeholder:text-slate-600 placeholder:text-sm placeholder:font-normal focus:outline-none focus:border-emerald-500/60 mono"></textarea>
+        </div>
+
+        <div class="flex items-center justify-between text-xs text-slate-400 pt-1">
+          <div class="flex items-center gap-2 overflow-x-auto py-1" id="tokenHistoryContainer">
+            <span class="text-slate-500 italic">Belum ada token huruf...</span>
+          </div>
+          <span id="charCountBadge" class="mono text-[11px] text-slate-400 shrink-0 ml-2">0 karakter | 0 kata</span>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- RIGHT COLUMN: RESEARCH TELEMETRY, ML STATUS & EXPERIMENT LOGGING (5 COLS) -->
+    <section class="lg:col-span-5 flex flex-col gap-5">
+
+      <!-- 1. REAL-TIME ML & TRACKING TELEMETRY METRICS -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-sm font-semibold text-white">Telemetri ML & Tracking</h2>
+          <span id="telemetryStateBadge" class="text-[11px] mono px-2.5 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">IDLE</span>
+        </div>
+
+        <!-- 4 Grid Cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 mb-4">
+          <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-2.5">
+            <div class="text-[10px] text-slate-400 uppercase">Confidence</div>
+            <div id="metricConf" class="text-base font-bold mono text-emerald-400 mt-0.5">0.00%</div>
+            <div id="metricMeanConf" class="text-[10px] mono text-slate-500">Avg: 0.0%</div>
+          </div>
+          <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-2.5">
+            <div class="text-[10px] text-slate-400 uppercase">Latensi ResNet</div>
+            <div id="metricBackendMs" class="text-base font-bold mono text-indigo-400 mt-0.5">0.0 ms</div>
+            <div id="metricRttMs" class="text-[10px] mono text-slate-500">RTT: 0 ms</div>
+          </div>
+          <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-2.5">
+            <div class="text-[10px] text-slate-400 uppercase">Hand Score</div>
+            <div id="metricHandScore" class="text-base font-bold mono text-cyan-400 mt-0.5">0.00%</div>
+            <div id="metricHandedness" class="text-[10px] mono text-slate-500">Tangan: -</div>
+          </div>
+          <div class="bg-slate-950/90 border border-slate-800/80 rounded-xl p-2.5">
+            <div class="text-[10px] text-slate-400 uppercase">Entropy (H)</div>
+            <div id="metricEntropy" class="text-base font-bold mono text-amber-400 mt-0.5">0.000</div>
+            <div class="text-[10px] mono text-slate-500">Ketidakpastian</div>
+          </div>
+        </div>
+
+        <!-- TOP-5 SOFTMAX PROBABILITY DISTRIBUTION -->
+        <div class="bg-slate-950/70 border border-slate-800/80 rounded-xl p-3">
+          <div class="flex items-center justify-between text-xs mb-2">
+            <span class="font-medium text-slate-300">Top-5 Softmax</span>
+            <span id="totalFramesPredicted" class="mono text-[11px] text-slate-400">0 sampel</span>
+          </div>
+          <div id="top5Bars" class="space-y-2 text-xs mono">
+            <div class="text-slate-500 text-xs py-2 text-center">Menunggu deteksi tangan...</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. HYPERPARAMETER & TRACKING CONTROLS -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl">
+        <h2 class="text-sm font-semibold text-white mb-3">Parameter Kontrol</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
+            <div class="flex justify-between mb-1">
+              <span class="text-slate-300">Min. Confidence</span>
+              <span id="lblConfThresh" class="mono text-emerald-400 font-semibold">55%</span>
+            </div>
+            <input id="rngConfThresh" type="range" min="20" max="95" step="5" value="55" class="w-full accent-emerald-500" />
+          </div>
+
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
+            <div class="flex justify-between mb-1">
+              <span class="text-slate-300">Hold Time</span>
+              <span id="lblHoldMs" class="mono text-cyan-400 font-semibold">1000 ms</span>
+            </div>
+            <input id="rngHoldMs" type="range" min="400" max="2500" step="100" value="1000" class="w-full accent-cyan-500" />
+          </div>
+
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
+            <div class="flex justify-between mb-1">
+              <span class="text-slate-300">Margin Crop (1:1)</span>
+              <span id="lblCropPad" class="mono text-amber-400 font-semibold">35%</span>
+            </div>
+            <input id="rngCropPad" type="range" min="10" max="80" step="5" value="35" class="w-full accent-amber-500" />
+          </div>
+
+          <div class="bg-slate-950/80 border border-slate-800 rounded-xl p-3">
+            <div class="flex justify-between mb-1">
+              <span class="text-slate-300">Interval Inferensi</span>
+              <span id="lblInferInterval" class="mono text-indigo-400 font-semibold">180 ms</span>
+            </div>
+            <input id="rngInferInterval" type="range" min="100" max="600" step="20" value="180" class="w-full accent-indigo-500" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. RESEARCH LOG TABLE & CSV/JSON EXPORT -->
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl flex-1 flex flex-col min-h-[260px]">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+          <div class="flex items-center gap-2">
+            <h2 class="text-sm font-semibold text-white">Log Inferensi</h2>
+            <span class="text-[11px] mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">Conf &gt; 95%</span>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <button id="btnExportCSV" class="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition">
+              Unduh CSV
+            </button>
+            <button id="btnExportJSON" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition">
+              JSON
+            </button>
+            <button id="btnClearLogs" class="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-rose-300 border border-slate-700 text-xs transition">
+              Reset
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between gap-2 bg-slate-950/90 border border-slate-800 rounded-xl px-3 py-2 mb-3 text-xs">
+          <div class="flex items-center gap-2">
+            <span class="text-slate-400">Ground Truth:</span>
+            <select id="selGroundTruth" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-slate-200 mono text-xs focus:outline-none">
+              <option value="">(Tanpa Target)</option>
+            </select>
+          </div>
+          <div class="mono text-xs">
+            <span class="text-slate-400">Akurasi:</span>
+            <span id="sessionAccuracy" class="text-emerald-400 font-bold ml-1">-</span>
+          </div>
+        </div>
+
+        <!-- Log Table -->
+        <div class="overflow-y-auto flex-1 max-h-56 border border-slate-800 rounded-xl bg-slate-950/60">
+          <table class="w-full text-left border-collapse text-xs mono">
+            <thead class="bg-slate-900/90 text-slate-400 sticky top-0 text-[11px]">
+              <tr>
+                <th class="py-2 px-2.5 border-b border-slate-800">#</th>
+                <th class="py-2 px-2.5 border-b border-slate-800">Waktu</th>
+                <th class="py-2 px-2.5 border-b border-slate-800">Pred</th>
+                <th class="py-2 px-2.5 border-b border-slate-800">Conf</th>
+                <th class="py-2 px-2.5 border-b border-slate-800">Tangan</th>
+                <th class="py-2 px-2.5 border-b border-slate-800">Ms</th>
+                <th class="py-2 px-2.5 border-b border-slate-800">Status</th>
+              </tr>
+            </thead>
+            <tbody id="logTableBody" class="divide-y divide-slate-800/60 text-slate-300">
+              <tr>
+                <td colspan="7" class="py-6 text-center text-slate-500 font-sans">Belum ada data log inferensi.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+  </main>
+
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>
