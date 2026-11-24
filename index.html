@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BISINDO Sign-to-Text</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class'
+    };
+  </script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+  </style>
+</head>
+<body class="bg-white text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100 min-h-screen flex flex-col transition-colors duration-150">
+
+  <!-- OVERLAY BACKDROP UNTUK DRAWER -->
+  <div id="drawerBackdrop" class="fixed inset-0 bg-black/40 z-40 hidden"></div>
+
+  <!-- DRAWER SISI KIRI -->
+  <aside id="leftDrawer" class="fixed top-0 left-0 bottom-0 w-80 max-w-[88vw] bg-white dark:bg-neutral-900 border-r border-neutral-300 dark:border-neutral-800 z-50 transform -translate-x-full transition-transform duration-200 flex flex-col">
+    <!-- Header Drawer -->
+    <div class="px-4 py-3.5 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+      <span class="font-semibold text-sm tracking-tight">Pengaturan & Panduan</span>
+      <button id="btnCloseDrawer" class="px-2.5 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800">
+        ✕
+      </button>
+    </div>
+
+    <!-- Isi Drawer (Scrollable) -->
+    <div class="p-4 overflow-y-auto flex-1 space-y-5 text-xs">
+
+      <!-- 1. Konfigurasi Sign-to-Text (Selalu Aktif) -->
+      <div class="space-y-2.5">
+        <div class="font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider text-[11px]">Konfigurasi Sign-to-Text</div>
+
+        <div class="p-3 border border-neutral-200 dark:border-neutral-800 rounded space-y-1.5">
+          <div class="flex justify-between">
+            <span>Waktu Tahan Isyarat</span>
+            <span id="lblHoldMs" class="mono font-semibold">1.0 dtk</span>
+          </div>
+          <input id="rngHoldMs" type="range" min="400" max="2500" step="100" value="1000" class="w-full accent-neutral-900 dark:accent-white cursor-pointer" />
+        </div>
+
+        <div class="p-3 border border-neutral-200 dark:border-neutral-800 rounded space-y-1.5">
+          <div class="flex justify-between">
+            <span>Minimal Confidence</span>
+            <span id="lblConfThresh" class="mono font-semibold">60%</span>
+          </div>
+          <input id="rngConfThresh" type="range" min="20" max="95" step="5" value="60" class="w-full accent-neutral-900 dark:accent-white cursor-pointer" />
+        </div>
+      </div>
+
+      <!-- 2. Panduan Gambar BISINDO -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider text-[11px]">Panduan Abjad BISINDO</span>
+          <button id="btnZoomGuide" class="text-[11px] underline text-neutral-600 dark:text-neutral-400 hover:text-black dark:hover:text-white">
+            Perbesar
+          </button>
+        </div>
+        <div class="border border-neutral-200 dark:border-neutral-800 rounded p-1.5 bg-neutral-50 dark:bg-neutral-950">
+          <img id="guideImg" src="/bisindo-guide.jpg" alt="Panduan BISINDO" class="w-full h-auto object-contain rounded cursor-pointer" />
+        </div>
+      </div>
+
+    </div>
+  </aside>
+
+  <!-- MODAL PERBESAR GAMBAR GUIDE -->
+  <div id="guideModal" class="fixed inset-0 bg-black/75 z-50 hidden items-center justify-center p-4">
+    <div class="bg-white dark:bg-neutral-900 border border-neutral-300 dark:border-neutral-700 rounded max-w-3xl w-full p-3 flex flex-col gap-2">
+      <div class="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-2">
+        <span class="text-xs font-semibold uppercase">Panduan Abjad BISINDO</span>
+        <button id="btnCloseGuideModal" class="px-2.5 py-1 text-xs border border-neutral-300 dark:border-neutral-700 rounded">✕</button>
+      </div>
+      <img src="/bisindo-guide.jpg" alt="Panduan BISINDO" class="w-full max-h-[80vh] object-contain" />
+    </div>
+  </div>
+
+  <!-- TOP NAVBAR -->
+  <header class="border-b border-neutral-300 dark:border-neutral-800 bg-white dark:bg-neutral-950">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <!-- Tombol Drawer: Hanya Simbol Saja -->
+        <button id="btnOpenDrawer" title="Menu" class="w-8 h-8 border border-neutral-300 dark:border-neutral-700 rounded flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-900">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+        <h1 class="font-bold text-base tracking-tight">BISINDO Sign-to-Text</h1>
+      </div>
+
+      <div class="flex items-center gap-3 text-xs">
+        <!-- Tombol Gelap / Terang: Hanya Simbol Matahari & Bulan -->
+        <button id="btnQuickTheme" title="Ubah Mode Gelap / Terang" class="w-8 h-8 border border-neutral-300 dark:border-neutral-700 rounded flex items-center justify-center hover:bg-neutral-100 dark:hover:bg-neutral-900">
+          <!-- Ikon Bulan (Tampil saat Mode Terang) -->
+          <svg id="iconMoon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 block dark:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+          </svg>
+          <!-- Ikon Matahari (Tampil saat Mode Gelap) -->
+          <svg id="iconSun" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 hidden dark:block" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT: KIRI (KAMERA) & KANAN (ATAS: PREDIKSI HURUF, BAWAH: SIGN TO TEXT) SELARAS VERTIKAL -->
+  <main class="max-w-6xl w-full mx-auto px-4 py-5">
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+
+      <!-- SISI KIRI: LIVE CAMERA (7 KOLOM) -->
+      <section class="lg:col-span-7 border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 flex flex-col">
+        <!-- Header Kamera (Dengan Mirror Kamera di samping tombol Mulai Kamera) -->
+        <div class="px-4 py-2.5 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">Live Camera</span>
+          <div class="flex items-center gap-3">
+            <label class="flex items-center gap-1.5 text-xs text-neutral-700 dark:text-neutral-300 cursor-pointer select-none">
+              <input type="checkbox" id="chkMirror" checked class="w-3.5 h-3.5 accent-neutral-900 dark:accent-white cursor-pointer" />
+              <span>Mirror</span>
+            </label>
+            <button id="btnToggleCam" class="px-3.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs transition">
+              Mulai Kamera
+            </button>
+          </div>
+        </div>
+
+        <!-- Area Video Kamera -->
+        <div class="relative bg-neutral-100 dark:bg-black aspect-video w-full flex items-center justify-center overflow-hidden">
+          <video id="webcam" autoplay playsinline muted class="w-full h-full object-contain hidden"></video>
+          <canvas id="overlayCanvas" class="w-full h-full object-contain"></canvas>
+
+          <div id="camPlaceholder" class="absolute inset-0 flex flex-col items-center justify-center bg-neutral-100 dark:bg-neutral-950 text-center p-6">
+            <p class="text-sm font-medium text-neutral-700 dark:text-neutral-300">Kamera Belum Aktif</p>
+            <p class="text-xs text-neutral-500 mt-1">Tekan tombol "Mulai Kamera" di pojok kanan atas kotak ini.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- SISI KANAN: ATAS (PREDIKSI HURUF) & BAWAH (KOLOM SIGN TO TEXT) MENGIKUTI TINGGI KAMERA (5 KOLOM) -->
+      <section class="lg:col-span-5 flex flex-col gap-4">
+
+        <!-- KOTAK ATAS: PREDIKSI HURUF -->
+        <div class="border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 p-4 flex flex-col justify-between">
+          <div class="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-2 mb-3">
+            <span class="text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">Prediksi Huruf</span>
+            <span id="handStateText" class="text-xs mono text-neutral-500">Menunggu tangan</span>
+          </div>
+
+          <div class="flex items-center justify-between my-1">
+            <div>
+              <div class="text-[11px] uppercase text-neutral-500 dark:text-neutral-400">Huruf Terdeteksi</div>
+              <div id="livePredChar" class="text-5xl font-bold mono leading-none mt-1.5 text-neutral-900 dark:text-white">-</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[11px] uppercase text-neutral-500 dark:text-neutral-400">Confidence</div>
+              <div id="livePredConf" class="text-xl font-bold mono mt-1">0%</div>
+            </div>
+          </div>
+
+          <!-- Progress Bars -->
+          <div class="mt-3 space-y-2.5">
+            <div>
+              <div class="w-full h-2 bg-neutral-200 dark:bg-neutral-800 rounded overflow-hidden">
+                <div id="confBar" class="h-full bg-neutral-900 dark:bg-white transition-all duration-100" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-neutral-500 dark:text-neutral-400">Tahan Ketik (Hold)</span>
+                <span id="holdStatusText" class="mono font-semibold">0%</span>
+              </div>
+              <div class="w-full h-2 bg-neutral-200 dark:bg-neutral-800 rounded overflow-hidden">
+                <div id="holdProgressBar" class="h-full bg-emerald-600 transition-all duration-75" style="width: 0%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- KOTAK BAWAH: KOLOM SIGN-TO-TEXT -->
+        <div class="border border-neutral-300 dark:border-neutral-800 rounded bg-white dark:bg-neutral-900 p-4 flex-1 flex flex-col justify-between">
+          <div class="flex-1 flex flex-col">
+            <div class="flex items-center justify-between border-b border-neutral-200 dark:border-neutral-800 pb-2 mb-2.5">
+              <span class="text-xs font-semibold uppercase tracking-wider text-neutral-600 dark:text-neutral-400">Sign-to-Text</span>
+              <span id="charCountInfo" class="text-[11px] mono text-neutral-500">0 karakter</span>
+            </div>
+
+            <textarea id="sentenceOutput" rows="3" placeholder="Teks hasil rangkaian isyarat akan muncul di sini..."
+              class="w-full flex-1 rounded bg-neutral-50 dark:bg-neutral-950 border border-neutral-300 dark:border-neutral-800 p-2.5 text-base font-medium text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 placeholder:text-xs focus:outline-none focus:border-neutral-600 dark:focus:border-neutral-500 mono resize-none"></textarea>
+          </div>
+
+          <!-- Tombol Aksi Sign-to-Text -->
+          <div class="flex flex-wrap items-center gap-1.5 pt-2.5 mt-2.5 border-t border-neutral-200 dark:border-neutral-800">
+            <button id="btnAddSpace" class="px-3 py-1 rounded border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium">
+              Spasi
+            </button>
+            <button id="btnBackspace" class="px-3 py-1 rounded border border-neutral-300 dark:border-neutral-700 hover:bg-neutral-100 dark:hover:bg-neutral-800 text-xs font-medium">
+              Hapus
+            </button>
+            <button id="btnSpeak" class="px-3 py-1 rounded bg-neutral-900 text-white dark:bg-white dark:text-neutral-900 hover:opacity-90 text-xs font-medium">
+              Suarakan
+            </button>
+            <button id="btnClearText" class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white text-xs font-medium ml-auto">
+              Bersihkan
+            </button>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
